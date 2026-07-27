@@ -13,6 +13,11 @@ German handball team app: player roster, trainings & match dates with confirm/de
 - 18 players (name, position, status, email, birthdate, password_hash, push_token).
 - 12 games (Spiel) Oct 2026–Apr 2027 + weekly Thursday 19:00 trainings from today through 2031 + coach-added Treffen.
 
+## Implemented (2026-07-27, v2.0)
+- [x] **PWA-fähig**: `/public/manifest.json` (id="Mimos App", name="Tus2 by Mimo 2.0"), Service Worker (`sw.js`) mit versionierten Caches (`tus2-mimo-2.0.0`), skipWaiting + clients.claim, controllerchange-Reload. Bestehende Installationen bekommen Updates automatisch, ohne Neu-Installation. Login-Screen zeigt "Version 2.0" Badge. Server-Daten (MongoDB) und Client-Session bleiben beim Update erhalten.
+- [x] **Google-Maps-Route-Button** neben Hallenname bei Auswärtsspielen (nicht bei Heimspielen, Training, Treffen, abgesagten Terminen). Testkennung `maps-<event_id>` in EventCard und `maps-detail-<event_id>` in Event-Detail. Öffnet Apple Maps auf iOS, Google Maps sonst.
+- [x] **Chat-Input bleibt über der Bildschirmtastatur sichtbar**: Web-PWA nutzt `window.visualViewport`-Hook `useWebKeyboardInset`, der die Input-Leiste exakt um die Höhe des Soft-Keyboards anhebt. Native (iOS/Android) verwendet KeyboardAvoidingView aus `react-native-keyboard-controller` mit `padding`/`translate-with-padding`.
+
 ## Implemented (2026-07-12)
 - [x] Password login (self-chosen), name selection + JWT; "Neu"/lock badges.
 - [x] Termine: filter chips (Alle/Spiele/Trainings/Treffen), Zusagen/Absagen; "Ich fahre" (Spiele), "Bringe Bier" (Trainings); Ferien/Feiertage BW inserts; ICS calendar export/share.
