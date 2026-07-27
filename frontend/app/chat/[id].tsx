@@ -8,6 +8,7 @@ import {
   Pressable,
   ActivityIndicator,
   Linking,
+  Platform,
 } from "react-native";
 import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import { Image } from "expo-image";
@@ -25,6 +26,32 @@ function timeOf(iso: string) {
   return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
 }
 
+// On the mobile browser (PWA), the native TextInput doesn't push layout up when the
+// soft keyboard opens — the browser just shrinks the visual viewport. We measure that
+// shrink via `window.visualViewport` and lift the input bar by exactly that amount so
+// the user always sees what they're typing.
+function useWebKeyboardInset() {
+  const [inset, setInset] = useState(0);
+  useEffect(() => {
+    if (Platform.OS !== "web") return;
+    // @ts-ignore visualViewport exists in browsers
+    const vv: any = typeof window !== "undefined" ? (window as any).visualViewport : null;
+    if (!vv) return;
+    const update = () => {
+      const overlap = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
+      setInset(overlap);
+    };
+    update();
+    vv.addEventListener("resize", update);
+    vv.addEventListener("scroll", update);
+    return () => {
+      vv.removeEventListener("resize", update);
+      vv.removeEventListener("scroll", update);
+    };
+  }, []);
+  return inset;
+}
+
 export default function Conversation() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
@@ -37,6 +64,7 @@ export default function Conversation() {
   const [attaching, setAttaching] = useState(false);
   const [showAttach, setShowAttach] = useState(false);
   const listRef = useRef<FlatList>(null);
+  const webKbInset = useWebKeyboardInset();
 
   const load = useCallback(async () => {
     if (!id) return;
@@ -99,6 +127,13 @@ export default function Conversation() {
       requestAnimationFrame(() => listRef.current?.scrollToEnd({ animated: true }));
     }
   }, [messages.length]);
+
+  // When the (web) keyboard opens, scroll list to end so latest message is visible
+  useEffect(() => {
+    if (webKbInset > 0) {
+      requestAnimationFrame(() => listRef.current?.scrollToEnd({ animated: false }));
+    }
+  }, [webKbInset]);
 
   const renderItem = ({ item }: { item: ChatMessage }) => {
     const mine = item.sender_id === player?.id;
@@ -169,7 +204,7 @@ export default function Conversation() {
 
       <KeyboardAvoidingView
         style={{ flex: 1 }}
-        behavior="translate-with-padding"
+        behavior={Platform.OS === "ios" ? "padding" : "translate-with-padding"}
         keyboardVerticalOffset={insets.top + 44}
       >
         {loading ? (
@@ -188,6 +223,7 @@ export default function Conversation() {
             contentContainerStyle={{ padding: spacing.lg, gap: spacing.sm }}
             onContentSizeChange={() => listRef.current?.scrollToEnd({ animated: false })}
             showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
           />
         )}
 
@@ -204,7 +240,21 @@ export default function Conversation() {
           </View>
         ) : null}
 
-        <View style={[styles.inputBar, { paddingBottom: insets.bottom + spacing.sm }]}>
+        <View
+          testID="chat-input-bar"
+          style={[
+            styles.inputBar,
+            // Native: safe-area bottom padding.
+            // Web PWA: lift the input bar above the soft keyboard by the amount
+            // the visual viewport shrunk, plus a small gap.
+            {
+              paddingBottom:
+                Platform.OS === "web" && webKbInset > 0
+                  ? webKbInset + spacing.sm
+                  : insets.bottom + spacing.sm,
+            },
+          ]}
+        >
           <Pressable
             testID="chat-attach"
             onPress={() => setShowAttach((v) => !v)}
