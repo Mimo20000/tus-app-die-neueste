@@ -1,0 +1,287 @@
+const BASE = `${process.env.EXPO_PUBLIC_BACKEND_URL}/api`;
+
+export type Player = {
+  id: string;
+  name: string;
+  position?: string | null;
+  status: string;
+  jersey_number?: number | null;
+  email?: string | null;
+  birthdate?: string | null;
+  avatar_file_id?: string | null;
+  has_password?: boolean;
+};
+
+export type Attachment = {
+  file_id: string;
+  mime: string;
+  filename: string;
+  kind: "image" | "file";
+};
+
+export type TeamEvent = {
+  id: string;
+  type: "Spiel" | "Training" | "Treffen";
+  date: string;
+  time: string;
+  home?: string | null;
+  away?: string | null;
+  opponent?: string | null;
+  location?: string | null;
+  title: string;
+  cancelled?: boolean;
+};
+
+export type Attendance = { event_id: string; player_id: string; status: string; driving?: boolean; beer?: boolean };
+
+async function req<T>(path: string, options?: RequestInit): Promise<T> {
+  const res = await fetch(`${BASE}${path}`, {
+    headers: { "Content-Type": "application/json" },
+    ...options,
+  });
+  if (!res.ok) throw new Error(`API ${res.status}`);
+  return res.json();
+}
+
+export const api = {
+  players: () => req<Player[]>("/players"),
+  events: () => req<TeamEvent[]>("/events"),
+  attendance: () => req<Attendance[]>("/attendance"),
+  stats: () => req<StatsResponse>("/stats"),
+  rsvp: (event_id: string, player_id: string, status: "zugesagt" | "abgesagt") =>
+    req<{ ok: boolean }>("/rsvp", {
+      method: "POST",
+      body: JSON.stringify({ event_id, player_id, status }),
+    }),
+  setDriving: (event_id: string, player_id: string, driving: boolean) =>
+    req<{ ok: boolean }>("/driving", {
+      method: "POST",
+      body: JSON.stringify({ event_id, player_id, driving }),
+    }),
+  setBeer: (event_id: string, player_id: string, beer: boolean) =>
+    req<{ ok: boolean }>("/beer", {
+      method: "POST",
+      body: JSON.stringify({ event_id, player_id, beer }),
+    }),
+  updateStatus: (player_id: string, status: "Aktiv" | "Verletzt" | "Inaktiv") =>
+    req<{ ok: boolean }>(`/players/${player_id}/status`, {
+      method: "PATCH",
+      body: JSON.stringify({ status }),
+    }),
+  updateContact: (player_id: string, body: { email?: string | null; birthdate?: string | null; jersey_number?: number | null; avatar_file_id?: string | null }) =>
+    req<{ ok: boolean }>(`/players/${player_id}/contact`, {
+      method: "PATCH",
+      body: JSON.stringify(body),
+    }),
+  createPlayer: (body: { name: string; position?: string | null; status?: string }) =>
+    req<Player>("/players", { method: "POST", body: JSON.stringify(body) }),
+  updatePlayer: (player_id: string, body: { name?: string; position?: string | null }) =>
+    req<{ ok: boolean }>(`/players/${player_id}`, { method: "PATCH", body: JSON.stringify(body) }),
+  deletePlayer: (player_id: string) =>
+    req<{ ok: boolean }>(`/players/${player_id}`, { method: "DELETE" }),
+  createEvent: (body: {
+    type: "Spiel" | "Training" | "Treffen";
+    date: string;
+    time: string;
+    opponent?: string;
+    location?: string;
+    home_game?: boolean;
+  }) =>
+    req<TeamEvent>("/events", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  updateEvent: (
+    event_id: string,
+    body: {
+      date?: string;
+      time?: string;
+      location?: string | null;
+      opponent?: string;
+      home_game?: boolean;
+    }
+  ) =>
+    req<{ ok: boolean }>(`/events/${event_id}`, {
+      method: "PATCH",
+      body: JSON.stringify(body),
+    }),
+  cancelEvent: (event_id: string) =>
+    req<{ ok: boolean }>(`/events/${event_id}/cancel`, { method: "POST" }),
+  eventOverview: (event_id: string) =>
+    req<EventOverview>(`/events/${event_id}/overview`),
+  holidays: () => req<Holiday[]>("/holidays"),
+  leagueTable: () => req<LeagueTable>("/league-table"),
+  messages: (conversation_id: string) =>
+    req<ChatMessage[]>(`/messages?conversation_id=${encodeURIComponent(conversation_id)}`),
+  sendMessage: (
+    conversation_id: string,
+    scope: "team" | "direct",
+    sender_id: string,
+    text: string,
+    attachment?: Attachment | null
+  ) =>
+    req<ChatMessage>("/messages", {
+      method: "POST",
+      body: JSON.stringify({ conversation_id, scope, sender_id, text, attachment: attachment ?? null }),
+    }),
+  markRead: (player_id: string, conversation_id: string) =>
+    req<{ ok: boolean }>("/messages/read", {
+      method: "POST",
+      body: JSON.stringify({ player_id, conversation_id }),
+    }),
+  conversations: (player_id: string) =>
+    req<Conversations>(`/conversations?player_id=${encodeURIComponent(player_id)}`),
+  unread: (player_id: string) =>
+    req<{ total: number }>(`/unread?player_id=${encodeURIComponent(player_id)}`),
+  eventsUnread: (player_id: string) =>
+    req<{ total: number }>(`/events-unread?player_id=${encodeURIComponent(player_id)}`),
+  eventsSeen: (player_id: string) =>
+    req<{ ok: boolean }>("/events-seen", {
+      method: "POST",
+      body: JSON.stringify({ player_id }),
+    }),
+  registerPush: (player_id: string, token: string) =>
+    req<{ ok: boolean }>("/push/register", {
+      method: "POST",
+      body: JSON.stringify({ player_id, token }),
+    }),
+  setPassword: (player_id: string, password: string) =>
+    req<AuthResponse>(`/players/${player_id}/set-password`, {
+      method: "POST",
+      body: JSON.stringify({ password }),
+    }),
+  passwordLogin: (player_id: string, password: string) =>
+    req<AuthResponse>(`/players/${player_id}/login`, {
+      method: "POST",
+      body: JSON.stringify({ password }),
+    }),
+  forgotPassword: (player_id: string) =>
+    req<{ ok: boolean; email_hint: string }>(`/players/${player_id}/forgot-password`, {
+      method: "POST",
+    }),
+  resetPassword: (player_id: string, code: string, password: string) =>
+    req<AuthResponse>(`/players/${player_id}/reset-password`, {
+      method: "POST",
+      body: JSON.stringify({ code, password }),
+    }),
+  fileRawUrl: (file_id: string) => `${BASE}/files/${file_id}/raw`,
+  uploadFile: async (
+    base64: string,
+    filename: string,
+    mime: string,
+    kind: "image" | "file",
+    onProgress?: (p: number) => void
+  ): Promise<{ file_id: string; mime: string; filename: string; kind: string; size: number }> => {
+    const init = await req<{ upload_id: string }>("/files/init", {
+      method: "POST",
+      body: JSON.stringify({ filename, mime, kind }),
+    });
+    const uid = init.upload_id;
+    const CHUNK = 256 * 1024;
+    const total = Math.max(1, Math.ceil(base64.length / CHUNK));
+    for (let i = 0; i < total; i++) {
+      const data = base64.slice(i * CHUNK, (i + 1) * CHUNK);
+      await req<{ ok: boolean }>("/files/chunk", {
+        method: "POST",
+        body: JSON.stringify({ upload_id: uid, index: i, data }),
+      });
+      onProgress?.((i + 1) / total);
+    }
+    return req("/files/finalize", { method: "POST", body: JSON.stringify({ upload_id: uid }) });
+  },
+};
+
+export type AuthResponse = { access_token: string; player_id: string };
+
+export type EventOverviewPlayer = {
+  id: string;
+  name: string;
+  position?: string | null;
+  status: string;
+  jersey_number?: number | null;
+  email?: string | null;
+  rsvp: "zugesagt" | "abgesagt" | null;
+  driving: boolean;
+  beer: boolean;
+};
+
+export type EventOverview = {
+  event: TeamEvent;
+  players: EventOverviewPlayer[];
+  summary: { zusagen: number; absagen: number; offen: number; fahrer: number; bier: number };
+};
+
+export type Holiday = {
+  kind: "feiertag" | "ferien";
+  name: string;
+  date: string;
+  end: string | null;
+};
+
+export type LeagueRow = {
+  rank: number | null;
+  team: string | null;
+  points: string | null;
+  games: number | null;
+  wins: number | null;
+  draws: number | null;
+  losses: number | null;
+  goals: number | null;
+  goals_against: number | null;
+  goal_diff: number | null;
+  is_own: boolean;
+};
+
+export type LeagueTable = {
+  tournament: string | null;
+  updated_at: string | null;
+  rows: LeagueRow[];
+};
+
+export type ChatMessage = {
+  id: string;
+  conversation_id: string;
+  scope: string;
+  sender_id: string;
+  sender_name: string;
+  text: string;
+  attachment?: Attachment | null;
+  created_at: string;
+};
+
+export type ConversationSummary = {
+  player_id: string;
+  name: string;
+  position?: string | null;
+  conversation_id: string;
+  last: ChatMessage | null;
+  unread: number;
+};
+
+export type Conversations = {
+  team: { conversation_id: string; last: ChatMessage | null; unread: number };
+  directs: ConversationSummary[];
+};
+
+export type PlayerStat = {
+  id: string;
+  name: string;
+  position?: string | null;
+  games_total: number;
+  games_confirmed: number;
+  games_rate: number;
+  trainings_total: number;
+  trainings_confirmed: number;
+  trainings_rate: number;
+  overall_confirmed: number;
+  overall_total: number;
+  overall_rate: number;
+  driving_count: number;
+  beer_count: number;
+};
+
+export type StatsResponse = {
+  players: PlayerStat[];
+  games_count: number;
+  trainings_count: number;
+};

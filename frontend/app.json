@@ -35,6 +35,13 @@
           "resizeMode": "contain",
           "backgroundColor": "#000000"
         }
+      ],
+      "@react-native-community/datetimepicker",
+      [
+        "expo-notifications",
+        {
+          "color": "#DA291C"
+        }
       ]
     ],
     "experiments": {
