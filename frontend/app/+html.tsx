@@ -48,13 +48,35 @@ export default function Root({ children }: PropsWithChildren) {
           }}
         />
 
-        {/* Register service worker so the app is installable as a PWA */}
+        {/* Register service worker and auto-refresh on new version so an
+            update rolls out to already-installed PWAs without re-install.
+            Passwords / session token in localStorage & MongoDB server data
+            are never touched. */}
         <script
           dangerouslySetInnerHTML={{
             __html: `
               if ('serviceWorker' in navigator) {
                 window.addEventListener('load', function () {
-                  navigator.serviceWorker.register('/sw.js').catch(function () {});
+                  navigator.serviceWorker.register('/sw.js').then(function (reg) {
+                    // If a new worker is already waiting, activate it immediately.
+                    if (reg.waiting) reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+                    reg.addEventListener('updatefound', function () {
+                      var nw = reg.installing;
+                      if (!nw) return;
+                      nw.addEventListener('statechange', function () {
+                        if (nw.state === 'installed' && navigator.serviceWorker.controller) {
+                          nw.postMessage({ type: 'SKIP_WAITING' });
+                        }
+                      });
+                    });
+                  }).catch(function () {});
+                  // When the controller changes, reload once so users see the new version.
+                  var reloaded = false;
+                  navigator.serviceWorker.addEventListener('controllerchange', function () {
+                    if (reloaded) return;
+                    reloaded = true;
+                    window.location.reload();
+                  });
                 });
               }
             `,

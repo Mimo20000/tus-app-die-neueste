@@ -179,6 +179,9 @@ export default function Login() {
         <Image source={logo} style={styles.logo} contentFit="contain" />
         <Text style={styles.clubName}>TuS Oberhausen II</Text>
         <Text style={styles.subtitle}>Handball · Team-Verwaltung</Text>
+        <View style={styles.versionPill}>
+          <Text style={styles.versionText}>Version 2.0</Text>
+        </View>
       </View>
 
       <View style={styles.sheet}>
@@ -394,6 +397,16 @@ const styles = StyleSheet.create({
   logo: { width: 110, height: 150 },
   clubName: { color: colors.onBrand, fontFamily: font.extra, fontSize: 24, marginTop: spacing.md },
   subtitle: { color: "rgba(255,255,255,0.85)", fontFamily: font.medium, fontSize: 14, marginTop: spacing.xs },
+  versionPill: {
+    marginTop: spacing.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 4,
+    borderRadius: radius.pill,
+    backgroundColor: "rgba(255,255,255,0.18)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.35)",
+  },
+  versionText: { fontFamily: font.bold, fontSize: 11, color: colors.onBrand, letterSpacing: 0.5 },
   sheet: {
     flex: 1,
     backgroundColor: colors.surface,
