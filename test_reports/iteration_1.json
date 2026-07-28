@@ -31,6 +31,6 @@
   "seed_data_creation": "None. Used existing seeded events (T1..T12) and existing josh-ankermann account (pw12345).",
   "retest_needed": false,
   "should_main_agent_self_test": false,
-  "context_for_next_testing_agent": "Route pill feature (maps-{id} on Termine, maps-detail-{id} on event detail) is fully verified for AWAY games and correctly hidden for HOME/Training. Login as josh-ankermann / pw12345 to get past auth. Base URL: https://mobile-first-stage-71.preview.emergentagent.com. Cancelled-event branch not exercisable without added seed data.",
+  "context_for_next_testing_agent": "Route pill feature (maps-{id} on Termine, maps-detail-{id} on event detail) is fully verified for AWAY games and correctly hidden for HOME/Training. Login as josh-ankermann / pw12345 to get past auth. Base URL: https://auth-data-sync.preview.emergentagent.com. Cancelled-event branch not exercisable without added seed data.",
   "rca_of_issue": "Not applicable — no issues found in the feature under test."
 }

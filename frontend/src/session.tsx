@@ -5,6 +5,14 @@ import { registerForPush } from "@/src/push";
 
 const KEY = "tus.currentPlayerId";
 const TOKEN_KEY = "tus.token";
+// Fallback-Kopie des Tokens in AsyncStorage. AsyncStorage überlebt App-Updates
+// (auch Android APK-Neubauten mit rotiertem Verschlüsselungs-Key des SecureStore)
+// zuverlässiger als der Keychain/EncryptedSharedPreferences-Store. Wir schreiben
+// den Token beim Login in BEIDE Stores und lesen bei Session-Restore zuerst
+// SecureStore, dann AsyncStorage. Wenn SecureStore leer ist, wird er aus dem
+// Fallback wieder befüllt -> Anmeldung bleibt bei einem Update vollständig
+// erhalten.
+const TOKEN_FALLBACK_KEY = "tus.tokenFallback";
 const PLAYER_KEY = "tus.currentPlayer";
 
 type SessionCtx = {
@@ -35,7 +43,25 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     (async () => {
       try {
         const savedId = await storage.getItem<string | null>(KEY, null);
-        const token = await storage.secureGet<string | null>(TOKEN_KEY, null);
+        // 1) SecureStore ist unsere primäre Token-Quelle.
+        let token = await storage.secureGet<string | null>(TOKEN_KEY, null);
+        // 2) Fallback: nach App-Updates kann der Keychain/ESP-Eintrag
+        //    verloren gehen. In diesem Fall lesen wir den in AsyncStorage
+        //    gespiegelten Token und schreiben ihn direkt wieder in den
+        //    SecureStore zurück, damit alles wieder synchron ist.
+        if (!token) {
+          const fallback = await storage.getItem<string | null>(
+            TOKEN_FALLBACK_KEY,
+            null,
+          );
+          if (fallback) {
+            token = fallback;
+            await storage.secureSet(TOKEN_KEY, fallback);
+          }
+        } else {
+          // SecureStore hatte den Token -> Fallback aktuell halten.
+          await storage.setItem(TOKEN_FALLBACK_KEY, token);
+        }
         // Restore the cached player object FIRST so the user stays logged in
         // even if the network/players list is momentarily unavailable.
         if (savedId && token) {
@@ -71,7 +97,10 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const login = async (p: Player, token: string) => {
+    // Token in BEIDE Stores schreiben, damit die Anmeldung ein App-Update
+    // garantiert überlebt (siehe Kommentar zu TOKEN_FALLBACK_KEY oben).
     await storage.secureSet(TOKEN_KEY, token);
+    await storage.setItem(TOKEN_FALLBACK_KEY, token);
     await storage.setItem(KEY, p.id);
     await storage.setItem(PLAYER_KEY, JSON.stringify(p));
     setPlayer(p);
@@ -80,6 +109,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
 
   const logout = async () => {
     await storage.secureRemove(TOKEN_KEY);
+    await storage.removeItem(TOKEN_FALLBACK_KEY);
     await storage.removeItem(KEY);
     await storage.removeItem(PLAYER_KEY);
     setPlayer(null);

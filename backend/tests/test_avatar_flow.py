@@ -10,7 +10,7 @@ import os
 import pytest
 import requests
 
-BASE_URL = os.environ.get("EXPO_PUBLIC_BACKEND_URL", "https://mobile-first-stage-71.preview.emergentagent.com").rstrip("/")
+BASE_URL = os.environ.get("EXPO_PUBLIC_BACKEND_URL", "https://auth-data-sync.preview.emergentagent.com").rstrip("/")
 API = f"{BASE_URL}/api"
 
 # 1x1 red PNG
