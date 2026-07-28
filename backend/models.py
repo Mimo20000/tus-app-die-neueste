@@ -11,6 +11,7 @@ class Player(BaseModel):
     jersey_number: Optional[int] = None
     email: Optional[str] = None
     birthdate: Optional[str] = None
+    avatar_file_id: Optional[str] = None
     has_password: bool = False
 
 
